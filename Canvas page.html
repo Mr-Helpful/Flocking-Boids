@@ -37,25 +37,21 @@
     </script>
     <script id="Word", type="text/javascript">
       function drawWords(){
-        var canvas = document.getElementById("BoidGround")
-        var cw = canvas.width
-        var ch = canvas.height
-        var ctx = canvas.getContext("2d")
-
         ctx.textBaseline = 'top'
-        ctx.font         = '150px arial'
-        ctx.fillStyle = '#000000'
+        ctx.font         = '150px sans-serif'
+        ctx.fillStyle    = '#000000'
+        
         ctx.fillText(letters, 30, 30)
+        data = ctx.getImageData(0, 0, cW, cH).data
+        ctx.clearRect(0, 0, cW, cH)
         letters = ""
-        data = ctx.getImageData(0, 0, cw, ch).data
-        ctx.clearRect(0, 0, cw, ch)
 
         var Points = []
         for(var i = 0; i < data.length; i += 4){
           var v = data[i] + data[i + 1] + data[i + 2]
           if(data[i + 3] > 0 && v === 0){
             var x = i / 4
-            p = new Vector(x % cw, Math.floor(x / cw))
+            p = new Vector(x % cW, Math.floor(x / cW))
             Points.push(p)
           }
         }
@@ -184,9 +180,7 @@
         }
       }
 
-      function updateBoids(Boids, T, drawWords){
-        var canvas = document.getElementById("BoidGround")
-        var ctx = canvas.getContext("2d")
+      function updateBoids(Boids, T, colour){
         ctx.clearRect(0, 0, canvas.width, canvas.height)
 
         Boids.map((b, i) => {
@@ -198,13 +192,13 @@
           return b
         })
         Boids.map(b => {
-          drawBoid(ctx, b.s, b.v)
+          drawBoid(ctx, b.s, b.v, colour)
           return b
         })
       }
     </script>
     <script id="drawBoid", type="text/javascript">
-      function drawBoid(ctx, pos, rot){
+      function drawBoid(ctx, pos, rot, colour){
         // defines the arrow, with a center on 0,0
         var a = [new Vector(-3, 4),
                  new Vector(-3, -4),
@@ -236,7 +230,7 @@
         ctx.lineTo(a[1].x, a[1].y)
         ctx.lineTo(a[2].x, a[2].y)
         ctx.lineTo(a[0].x, a[0].y)
-        ctx.strokeStyle = "#ccc"
+        ctx.strokeStyle = colour
         ctx.closePath()
         ctx.stroke()
       }
@@ -275,47 +269,44 @@
       }
       }
 
-      const n = 500
+      // set up the canvas in use correctly
+      var canvas = document.getElementById("BoidGround")
+      var cW = canvas.width = document.body.clientWidth
+      var cH = canvas.height = document.body.clientHeight
+      var ctx = canvas.getContext("2d")
+
+      const settings = {"bSettings":{"dims":[cW,cH],
+                                     "minV":30,
+                                     "maxV":100,
+                                     "maxA":50,
+                                     "detectA":0,
+                                     "bDetectR":40,
+                                     "tDetectR":200,
+                                     "avoidR":20,
+                                     "tWeight":2,
+                                     "cWeight":0.7,
+                                     "fWeight":1.5,
+                                     "aWeight":0.7,
+                                     "wWeight":20},
+                        "noBoids":500,
+                        "boidColour":"#ccc",
+                        "frequency":60}
 
       function init(){
         addErrorReporting()
-
-        // set up the canvas in use correctly
-        var canvas = document.getElementById("BoidGround")
-        var cW = canvas.width = document.body.clientWidth
-        var cH = canvas.height = document.body.clientHeight
-        var ctx = canvas.getContext("2d")
 
       	canvas.onmousemove = updateMouseVals
         canvas.onmouseout = unFocus
         document.onkeydown = addLetterToWord
 
-        var settings = {"dims":[cW,cH],
-                        "minV":30,
-                        "maxV":100,
-                        "maxA":50,
-                        "detectA":0,
-                        "bDetectR":40,
-                        "tDetectR":200,
-                        "avoidR":20,
-                        "tWeight":2,
-                        "cWeight":0.7,
-                        "fWeight":1.5,
-                        "aWeight":0.7,
-                        "wWeight":20}
-
         // the time (in ms) between each update
-        const T = Math.floor(1000 / 60)
-        var Boids = new Array(n).fill(0).map(val => new Boid(settings))
+        const T = Math.floor(1000 / settings.frequency)
+        var Boids = new Array(settings.noBoids).fill(0)
+        Boids = Boids.map(val => new Boid(settings.bSettings))
 
-        ctx.fillStyle    = '#00f'
-        ctx.font         = 'italic 30px sans-serif'
-        ctx.textBaseline = 'top'
-        ctx.font         = 'bold 30px sans-serif'
+        updateBoids(Boids, T, settings.boidColour)
 
-        updateBoids(Boids, T)
-
-        setInterval(updateBoids, T, Boids, T, drawWords)
+        setInterval(updateBoids, T, Boids, T, settings.boidColour)
       }
     </script>
   </head>
