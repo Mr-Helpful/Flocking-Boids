@@ -1,0 +1,326 @@
+<html>
+  <head>
+    <title>Canvas test</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet", type="text/css", href="style.css">
+    <script id="Vector", type="text/javascript">
+      class Vector{
+        constructor(x, y){
+          this.x = x
+          this.y = y
+        }
+        add(vec){
+          return new Vector(this.x + vec.x,
+                            this.y + vec.y)
+        }
+        sub(vec){
+          return new Vector(this.x - vec.x,
+                            this.y - vec.y)
+        }
+        mul(A){
+          return new Vector(this.x * A,
+                            this.y * A)
+        }
+        length(){
+          return (this.x**2 + this.y**2)**0.5
+        }
+        dot(vec){
+          return this.x*vec.x + this.y*vec.y
+        }
+        normalize(){
+          if(this.length() === 0){
+            return this
+          }
+          return this.mul(1/this.length())
+        }
+      }
+    </script>
+    <script id="Word", type="text/javascript">
+      function drawWords(){
+        var canvas = document.getElementById("BoidGround")
+        var cw = canvas.width
+        var ch = canvas.height
+        var ctx = canvas.getContext("2d")
+
+        ctx.textBaseline = 'top'
+        ctx.font         = '150px arial'
+        ctx.fillStyle = '#000000'
+        ctx.fillText(letters, 30, 30)
+        letters = ""
+        data = ctx.getImageData(0, 0, cw, ch).data
+        ctx.clearRect(0, 0, cw, ch)
+
+        var Points = []
+        for(var i = 0; i < data.length; i += 4){
+          var v = data[i] + data[i + 1] + data[i + 2]
+          if(data[i + 3] > 0 && v === 0){
+            var x = i / 4
+            p = new Vector(x % cw, Math.floor(x / cw))
+            Points.push(p)
+          }
+        }
+
+        x = Math.max(Math.floor(Points.length / n), 1)
+        wordPoints = Points.filter((val, i) => {
+          return (i % x === 0)
+        })
+      }
+    </script>
+    <script id="Boids", type="text/javascript">
+      function clamp(num, min, max){
+        return Math.min(Math.max(num, min), max)
+      }
+
+      function rand(maxVal){
+        return Math.floor(Math.random()*maxVal)
+      }
+
+      class Boid{
+        s = null
+        v = null
+        a = null
+        constructor(settings){
+          this.S = settings
+
+          const m = this.S.dims[0], n = this.S.dims[1]
+          this.s = new Vector(rand(m), rand(n))
+
+          function createVel(minV, maxV){
+            var a = minV + rand(maxV - minV)
+            if(rand(2) > 0){
+              return -a
+            }
+            return a
+          }
+          const vx = createVel(this.S.minV, this.S.maxV)
+          const vy = createVel(this.S.minV, this.S.maxV)
+          this.v = new Vector(vx, vy)
+
+          this.a = new Vector(0, 0)
+        }
+
+        selectBoids(Boids){
+          return Boids.filter(b => {
+            const o = b.s - this.s
+            const mV = this.v.length()
+            const mO = o.length()
+            const cosA = this.v.dot(o) / (mO * mV)
+            return (cosA > this.S.detectA && 0 < mO && mO < this.S.bDetectR)
+          })
+        }
+
+        update(Boids, t = null, w = null){
+          this.a = new Vector(0, 0)
+
+          if(t !== null){
+            var o = t.sub(this.s)
+            if(o.length() < this.S.tDetectR){
+              //alert("target tracked with weight '" + this.S.tWeight + "'")
+              this.a = this.a.add(this.nudgeA(o).mul(this.S.tWeight))
+            }
+          }
+          if(w !== null){
+            var o = w.sub(this.s)
+            this.a = this.a.add(this.nudgeA(o).mul(this.S.wWeight))
+          }
+          if(Boids.length > 0){
+            this.a = this.a.add(this.toCenter(Boids))
+            this.a = this.a.add(this.fromOthers(Boids))
+            this.a = this.a.add(this.alignOthers(Boids))
+          }
+        }
+
+        move(T){
+          var temp = this.v
+          this.v = this.v.add(this.a.mul(T))
+          this.v = this.limitA(this.v, this.S.minV, this.S.maxV)
+          this.s = this.s.add(this.v.mul(T))
+
+          // stops the boids going off the sides of the screen
+          this.s.x = (this.s.x + this.S.dims[0]) % this.S.dims[0]
+          this.s.y = (this.s.y + this.S.dims[1]) % this.S.dims[1]
+        }
+
+        toCenter(Boids){
+          var vecs = Boids.map(val => val.s)
+          const o = this.avgVecs(vecs).sub(this.s)
+          return this.nudgeA(o).mul(this.S.cWeight)
+        }
+
+        fromOthers(Boids){
+          const tooClose = Boids.filter(b => {
+            const o = b.s.sub(this.s)
+            return (o.length() < this.S.avoidR)
+          })
+          const fVecs = tooClose.map(b => {
+            const o = b.s.sub(this.s).mul(-1)
+            return o.mul(1/(o.length() + 1) ** 2)
+          })
+          var o = this.avgVecs(fVecs)
+          o = this.nudgeA(o).mul(this.S.fWeight)
+          return o
+        }
+
+        alignOthers(Boids){
+          var vecs = Boids.map(val => val.v)
+          const o = this.avgVecs(vecs)
+          return o.mul(this.S.aWeight)
+        }
+
+        avgVecs(vecs){
+          const t = vecs.reduce((x, y) => x.add(y), new Vector(0,0))
+          return t.mul(1/vecs.length)
+        }
+
+        limitA(a, min, max){
+          const scale = clamp(a.length(), min, max)
+          return a.normalize().mul(scale)
+        }
+
+        nudgeA(v){
+          // finds an acceleration which will nudge the velocity towards the desired velocity v
+          var a = v.normalize().mul(this.S.maxV).sub(this.v)
+          return this.limitA(a, 0, this.S.maxA)
+        }
+      }
+
+      function updateBoids(Boids, T, drawWords){
+        var canvas = document.getElementById("BoidGround")
+        var ctx = canvas.getContext("2d")
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+        Boids.map((b, i) => {
+          b.update(Boids, tPos, wordPoints[i])
+          return b
+        })
+        Boids.map(b => {
+          b.move(T/1000)
+          return b
+        })
+        Boids.map(b => {
+          drawBoid(ctx, b.s, b.v)
+          return b
+        })
+      }
+    </script>
+    <script id="drawBoid", type="text/javascript">
+      function drawBoid(ctx, pos, rot){
+        // defines the arrow, with a center on 0,0
+        var a = [new Vector(-3, 4),
+                 new Vector(-3, -4),
+                 new Vector(5, 0)]
+
+        // we calculate the rotation matrix representing the argument of rot
+        // we represent it in 2 vectors which, combined, make a matrix
+        const m = (new Vector(rot.x, -rot.y)).normalize()
+        const n = (new Vector(rot.y, rot.x)).normalize()
+
+        // define a few temp variables
+        var t1, t2
+        for(var i in a){
+          if(rot.x === 0 && rot.y === 0){
+            t1 = a[i]
+          }
+          else{
+            // here we apply the rotation
+            t1 = a[i].dot(m)
+            t2 = a[i].dot(n)
+            t1 = new Vector(t1, t2)
+          }
+          a[i] = t1.add(pos)
+        }
+
+        // draw the tranformed arrow onto the canvas object provided
+        ctx.beginPath()
+        ctx.moveTo(a[0].x, a[0].y)
+        ctx.lineTo(a[1].x, a[1].y)
+        ctx.lineTo(a[2].x, a[2].y)
+        ctx.lineTo(a[0].x, a[0].y)
+        ctx.strokeStyle = "#ccc"
+        ctx.closePath()
+        ctx.stroke()
+      }
+    </script>
+    <script id="events", type="text/javascript">
+      var tPos = null
+      function updateMouseVals(e){
+        mouseX = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft)
+        mouseY = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop)
+        tPos = new Vector(mouseX, mouseY)
+      }
+
+      function unFocus(e){
+        tPos = null
+      }
+
+      var letters = ""
+      var wordPoints = []
+      function addLetterToWord(e){
+        if(e.keyCode === 13){
+          drawWords()
+        }
+        else{
+          var inp = String.fromCharCode(e.keyCode)
+          if (/[a-zA-Z0-9-_ ]/.test(inp)){
+            letters += inp
+          }
+        }
+      }
+    </script>
+    <script id="drawing", type="text/javascript">
+      function addErrorReporting(){
+        window.onerror = function(msg, url, linenumber) {
+          alert('Error message: '+msg+'\nURL: '+url+'\nLine Number: '+linenumber)
+          return true
+      }
+      }
+
+      const n = 500
+
+      function init(){
+        addErrorReporting()
+
+        // set up the canvas in use correctly
+        var canvas = document.getElementById("BoidGround")
+        var cW = canvas.width = document.body.clientWidth
+        var cH = canvas.height = document.body.clientHeight
+        var ctx = canvas.getContext("2d")
+
+      	canvas.onmousemove = updateMouseVals
+        canvas.onmouseout = unFocus
+        document.onkeydown = addLetterToWord
+
+        var settings = {"dims":[cW,cH],
+                        "minV":30,
+                        "maxV":100,
+                        "maxA":50,
+                        "detectA":0,
+                        "bDetectR":40,
+                        "tDetectR":200,
+                        "avoidR":20,
+                        "tWeight":2,
+                        "cWeight":0.7,
+                        "fWeight":1.5,
+                        "aWeight":0.7,
+                        "wWeight":20}
+
+        // the time (in ms) between each update
+        const T = Math.floor(1000 / 60)
+        var Boids = new Array(n).fill(0).map(val => new Boid(settings))
+
+        ctx.fillStyle    = '#00f'
+        ctx.font         = 'italic 30px sans-serif'
+        ctx.textBaseline = 'top'
+        ctx.font         = 'bold 30px sans-serif'
+
+        updateBoids(Boids, T)
+
+        setInterval(updateBoids, T, Boids, T, drawWords)
+      }
+    </script>
+  </head>
+  <body onload="init()">
+    <canvas id="BoidGround">Err: canvas not supported</canvas>
+    <div id="status">TestText</div>
+  </body>
+</html>
