@@ -276,9 +276,8 @@
     </script>
     <script id="drawing", type="text/javascript">
       var d = document
-      
+
       function addErrorReporting(){
-        alert("flag1")
         window.onerror = function(msg, url, linenumber) {
           alert('Error message: '+msg+'\nURL: '+url+'\nLine Number: '+linenumber)
           return true
@@ -299,7 +298,7 @@
                                "aWeight":0.7,
                                "wWeight":20,
                                "colour":"#ccc",
-                               "N":500}}
+                               "N":200}}
 
         // this represents the expected FPS the system is operating at
         const idealFPS = 60
@@ -354,8 +353,8 @@
       }
     </script>
   </head>
-  <body onload="foo();init()">
+  <body onload="init()">
     <canvas id="BoidGround">Err: canvas not supported</canvas>
-    <div id="status">TestText</div>
+    <div id="status">placeholder</div>
   </body>
 </html>
