@@ -75,7 +75,7 @@
           }
         }
 
-        x = Math.max(Math.floor(Points.length / d.noBoids), 1)
+        var x = Math.max(Math.floor(Points.length / d.settings.boids.N), 1)
         d.wordPoints = Points.filter((val, i) => {
           return (i % x === 0)
         })
@@ -191,7 +191,7 @@
         }
       }
 
-      function updateBoids(Boids, T, colour){
+      function updateBoids(Boids, T, S){
         var [canvas, cW, cH, ctx] = getCanvasDetails("BoidGround")
 
         ctx.clearRect(0, 0, cW, cH)
@@ -205,7 +205,7 @@
           return b
         })
         Boids.map(b => {
-          drawBoid(b.s, b.v, colour)
+          drawBoid(b.s, b.v, S.boids.colour)
           return b
         })
       }
@@ -264,6 +264,7 @@
       function addLetterToWord(e){
         if(e.keyCode === 13){
           drawWords(d.letters)
+          d.letters = ""
         }
         else{
           var inp = String.fromCharCode(e.keyCode)
@@ -276,12 +277,7 @@
     <script id="drawing", type="text/javascript">
       var d = document
 
-      function foo(){
-        alert("Hi now!")
-      }
-
       function addErrorReporting(){
-        alert("flag1")
         window.onerror = function(msg, url, linenumber) {
           alert('Error message: '+msg+'\nURL: '+url+'\nLine Number: '+linenumber)
           return true
@@ -289,24 +285,24 @@
       }
 
       function declareVariables(){
-        settings = {"bSettings":{"minV":30,
-                                 "maxV":100,
-                                 "maxA":50,
-                                 "detectA":0,
-                                 "bDetectR":40,
-                                 "tDetectR":200,
-                                 "avoidR":20,
-                                 "tWeight":2,
-                                 "cWeight":0.7,
-                                 "fWeight":1.5,
-                                 "aWeight":0.7,
-                                 "wWeight":20}
-                    "noBoids":500
-                    "boidColour":"#ccc",
-                    "frequency":60}
+        d.settings = {"boids":{"minV":30,
+                               "maxV":100,
+                               "maxA":50,
+                               "detectA":0,
+                               "bDetectR":40,
+                               "tDetectR":200,
+                               "avoidR":20,
+                               "tWeight":2,
+                               "cWeight":0.7,
+                               "fWeight":1.5,
+                               "aWeight":0.7,
+                               "wWeight":20,
+                               "colour":"#ccc",
+                               "N":500}}
 
-        Period = Math.floor(1000 / settings.frequency)
-        Boids = []
+        // this represents the expected FPS the system is operating at
+        const idealFPS = 60
+        const Period = Math.floor(1000 / idealFPS)
 
         d.mousePos = null
         d.letters = ""
@@ -314,7 +310,7 @@
 
         fps = 1
         prevT = Date.now()
-        return [settings, Period, fps, prevT]
+        return [d.settings, Period, fps, prevT]
       }
 
       function resize(){
@@ -328,20 +324,16 @@
         declareVariables()
         resize()
 
-        const c = 0
-        c = 1
-
         var [settings, Period, fps, prevT] = declareVariables()
         var [canvas, cW, cH, ctx] = getCanvasDetails("BoidGround")
-        settings.bSettings["dims"] = [cW, cH]
+        settings.boids.dims = [cW, cH]
 
       	canvas.onmousemove = updateMouseVals
         canvas.onmouseout = unFocus
         d.onkeydown = addLetterToWord
 
-        var Boids = new Array(settings.noBoids).fill(0)
-        Boids = Boids.map(val => new Boid(settings.bSettings))
-        alert(Boids)
+        var Boids = new Array(settings.boids.N).fill(0)
+        Boids = Boids.map(val => new Boid(settings.boids))
 
         window.requestAnimationFrame(function(){
           animationLoop(Boids, Period, settings, prevT, fps)
@@ -349,19 +341,19 @@
       }
 
       function animationLoop(Boids, Period, settings, prevT, fps){
-        dt = Date.now() - prevT
+        const scanWidth = 10
+        var fps = scanWidth / ((scanWidth - 1) / fps + (Date.now() - prevT) / 1000)
         prevT = Date.now()
-        fps = 10 / ((9 / fps) + (dt / 1000))
         document.getElementById("status").innerHTML = "FPS = " + Math.floor(fps)
 
-        updateBoids(Boids, Period, settings.boidColour)
+        updateBoids(Boids, Period, settings)
         window.requestAnimationFrame(function(){
           animationLoop(Boids, Period, settings, prevT, fps)
         })
       }
     </script>
   </head>
-  <body onload="foo();init()">
+  <body onload="init()">
     <canvas id="BoidGround">Err: canvas not supported</canvas>
     <div id="status">TestText</div>
   </body>
