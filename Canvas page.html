@@ -276,8 +276,9 @@
     </script>
     <script id="drawing", type="text/javascript">
       var d = document
-
+      
       function addErrorReporting(){
+        alert("flag1")
         window.onerror = function(msg, url, linenumber) {
           alert('Error message: '+msg+'\nURL: '+url+'\nLine Number: '+linenumber)
           return true
@@ -353,7 +354,7 @@
       }
     </script>
   </head>
-  <body onload="init()">
+  <body onload="foo();init()">
     <canvas id="BoidGround">Err: canvas not supported</canvas>
     <div id="status">TestText</div>
   </body>
