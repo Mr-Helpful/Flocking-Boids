@@ -1,7 +1,3 @@
-Vector = require("./Vector.js")
-drawWords = require("./Word.js")
-drawBoid = require("./Arrow.js")
-
 function clamp(num, min, max){
   return Math.min(Math.max(num, min), max)
 }
@@ -14,124 +10,111 @@ class Boid{
   s = null
   v = null
   a = null
-  constructor(settings){
+  constructor(settings, dFunc){
     this.S = settings
 
     const m = this.S.dims[0], n = this.S.dims[1]
-    this.s = new Vector(rand(m), rand(n))
+    this.s = [rand(m), rand(n)]
 
     const vx = this.S.minV + rand(this.S.maxV - this.S.minV)
     const vy = this.S.minV + rand(this.S.maxV - this.S.minV)
-    this.v = new Vector(vx, vy)
+    this.v = [vx, vy]
+    this.a = [0, 0]
 
-    this.a = new Vector(0, 0)
+    this.draw = dFunc
   }
 
   selectBoids(Boids){
     return Boids.filter(b => {
-      const o = b.s - this.s
-      const mV = this.v.length()
-      const mO = o.length()
-      const cosA = this.v.dot(o) / (mO * mV)
+      const o = sub(b.s, this.s)
+      const mV = mag(this.v)
+      const mO = mag(o)
+      const cosA = dot(this.v, o) / (mO * mV)
       return (cosA > this.S.detectA && 0 < mO && mO < this.S.detectR)
     })
   }
 
   update(Boids, t = null, w = null){
-    this.a = new Vector(0, 0)
+    this.a = [0, 0]
 
     if(t !== null){
-      var o = t.sub(this.s)
-      if(o.length() < this.S.detectR){
-        this.a = this.a.add(this.nudgeA(o).mul(this.S.tWeight))
+      let o = sub(t, this.s)
+      if(mag(o) < this.S.detectR){
+        this.a = add(this.a, mul(this.nudgeA(o), this.S.tWeight))
       }
     }
     if(w !== undefined){
-      var o = t.sub(this.s)
-      this.a = this.a.add(this.nudgeA(o).mul(this.S.wWeight))
+      let o = sub(t, this.s)
+      this.a = add(this.a, mul(this.nudgeA(o), this.S.wWeight))
     }
     if(Boids.length > 0){
-      this.a = this.a.add(this.toCenter(Boids))
-      this.a = this.a.add(this.fromOthers(Boids))
-      this.a = this.a.add(this.alignOthers(Boids))
+      this.a = add(this.a, this.toCenter(Boids))
+      this.a = add(this.a, this.fromOthers(Boids))
+      this.a = add(this.a, this.alignOthers(Boids))
     }
   }
 
   move(T){
-    var temp = this.v
-    this.v = this.v.add(this.a.mul(T))
-    if(temp.mul(T) === this.v.mul(T)){
+    let temp = this.v
+    this.v = add(this.v, mul(this.a, T))
+    if(mul(temp, T) === mul(this.v, T)){
       alert("not updated")
     }
-    this.v = this.limitA(this.v, this.S.minV, this.S.maxV)
-    if(temp.mul(T) === this.v.mul(T)){
+    this.v = lim(this.v, this.S.minV, this.S.maxV)
+    if(mul(temp, T) === mul(this.v, T)){
       alert("not updated")
     }
-    this.s = this.s.add(this.v.mul(T))
+    this.s = add(this.s, mul(this.v, T))
 
     // stops the boids going off the sides of the screen
-    this.s.x = (this.s.x + this.S.dims[0]) % this.S.dims[0]
-    this.s.y = (this.s.y + this.S.dims[1]) % this.S.dims[1]
+    this.s[0] = (this.s[0] + this.S.dims[0]) % this.S.dims[0]
+    this.s[1] = (this.s[1] + this.S.dims[1]) % this.S.dims[1]
+    this.draw(this.s, this.v)
   }
 
   toCenter(Boids){
-    var vecs = Boids.map(val => val.s)
-    const o = this.avgVecs(vecs).sub(this.s)
-    return this.nudgeA(o).mul(this.S.cWeight)
+    let vecs = Boids.map(val => val.s)
+    const o = sub(avg(vecs), this.s)
+    return mul(this.nudgeA(o), this.S.cWeight)
   }
 
   fromOthers(Boids){
-    const tooClose = Boids.filter(b => {
-      const o = b.s.sub(this.s)
-      return (o.length() < this.S.avoidR)
+    const close = Boids.filter(b => {
+      const o = sub(b.s, this.s)
+      return (mag(o) < this.S.avoidR)
     })
-    const fVecs = tooClose.map(b => {
-      const o = b.s.sub(this.s).mul(-1)
-      return o.mul(1/(o.length() + 1) ** 2)
+    const fVecs = close.map(b => {
+      const o = mul(sub(b.s, this.s), 1)
+      return mul(o, 1/(mag(o)+0.001))
     })
-    var o = this.avgVecs(fVecs)
-    o = this.nudgeA(o).mul(this.S.fWeight)
+    let o = avg(fVecs)
+    o = mul(this.nudgeA(o), this.S.fWeight)
     return o
   }
 
   alignOthers(Boids){
-    var vecs = Boids.map(val => val.v)
-    const o = this.avgVecs(vecs)
-    return o.mul(this.S.aWeight)
-  }
-
-  avgVecs(vecs){
-    const t = vecs.reduce((x, y) => x.add(y), new Vector(0,0))
-    return t.mul(1/vecs.length)
-  }
-
-  limitA(a, min, max){
-    const scale = clamp(a.length(), min, max)
-    return a.normalize().mul(scale)
+    let vecs = Boids.map(val => val.v)
+    const o = avg(vecs)
+    return mul(one(o), this.S.aWeight)
   }
 
   nudgeA(v){
     // finds an acceleration which will nudge the velocity towards the desired velocity v
-    var a = v.normalize().mul(this.S.maxV).sub(this.v)
-    return this.limitA(a, 0, this.S.maxA)
+    return one(sub(v, this.v))
   }
 }
 
-var mouseX = 0
-var mouseY = 0
-function updateMouseVals(e){
-  mouseX = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft)
-  mouseY = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop)
-}
+let mouseX = 0
+let mouseY = 0
 
-var letters = ""
+let letters = ""
 function addLetterToWord(e){
   alert("function called")
   if(e.keyCode === 13){
     drawWords()
   }
   else{
-    var inp = String.fromCharCode(e.keyCode)
+    let inp = String.fromCharCode(e.keyCode)
     alert("adding letter '" + inp + "' to word '" + letters + "'.")
     if (/[a-zA-Z0-9-_ ]/.test(inp)){
       letters += inp
@@ -140,25 +123,12 @@ function addLetterToWord(e){
 }
 
 function updateBoids(Boids, T){
-  alert("Boids being updated")
-  var canvas = document.getElementById("BoidGround")
-  var ctx = canvas.getContext("2d")
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  tPos = [mouseX, mouseY]
 
-  tPos = new Vector(mouseX, mouseY)
-
-  for(var i in Boids){
+  for(let i in Boids){
     Boids[i].update(Boids, tPos, wordPoints[i])
   }
   for(b of Boids){
     b.move(T/1000)
   }
-  for(b of Boids){
-    drawBoid(ctx, b.s, b.v)
-  }
 }
-
-module.exports = [Boid,
-                  updateMouseVals,
-                  addLetterToWord,
-                  updateBoids]

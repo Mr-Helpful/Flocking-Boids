@@ -1,32 +1,25 @@
-class Vector{
-  constructor(x, y){
-    this.x = x
-    this.y = y
-  }
-  add(vec){
-    return new Vector(this.x + vec.x,
-                      this.y + vec.y)
-  }
-  sub(vec){
-    return new Vector(this.x - vec.x,
-                      this.y - vec.y)
-  }
-  mul(A){
-    return new Vector(this.x * A,
-                      this.y * A)
-  }
-  length(){
-    return (this.x**2 + this.y**2)**0.5
-  }
-  dot(vec){
-    return this.x*vec.x + this.y*vec.y
-  }
-  normalize(){
-    if(this.length() === 0){
-      return this
-    }
-    return this.mul(1/this.length())
-  }
-}
+/*
+ * A test module to be used as an example of layout
+ */
 
-module.exports = Vector
+(function(global){
+  function clamp(s, e, v){return Math.max(s, Math.min(e, v))}
+
+  /* add: v1 + v2
+   * sub: v1 - v2
+   * dot: v1 • v2
+   * mul: cv
+   * mag: |v|
+   * one: normalisation of v
+   * lim: v s.t. s <= |v| <= e
+   */
+  global.add = (v1, v2)  => [v1[0]+v2[0], v1[1]+v2[1]]
+  global.sub = (v1, v2)  => [v1[0]-v2[0], v1[1]-v2[1]]
+  global.dot = (v1, v2)  => v1[0]*v2[0] + v1[1]*v2[1]
+  global.mul = (v, c)    => [v[0]*c, v[1]*c]
+  global.mag =  v        => Math.sqrt(v[0]*v[0] + v[1]*v[1])
+  global.one =  v        => mag(v) == 0? v: mul(v, 1/mag(v))
+  global.lim = (v, s, e) => mul(one(v), clamp(s, e, mag(v)))
+  global.sum =  vecs     => vecs.reduce(add, [0, 0])
+  global.avg =  vecs     => mul(sum(vecs), 1/vecs.length)
+})(this)
