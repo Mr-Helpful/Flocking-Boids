@@ -2,13 +2,93 @@
 <html>
   <head>
     <title>Alex Colby</title>
+    <link rel="stylesheet" href="fonts/fonts.css">
+    <link rel="stylesheet" href="css/controls.css">
     <script src="js/Vector.js"></script>
     <script src="js/Draw.js"></script>
     <script src="js/Word.js"></script>
     <script src="js/Control.js"></script>
+    <script type="text/javascript">
+      let settings = {}
+      settings = {
+        "minV":     30,
+        "maxV":     50,
+        "maxA":     20,
+        "vRadius":  50,
+        "vAngle":   0,
+        "avoidR":   20,
+        "tWeight":  0.3,
+        "cWeight":  1.0,
+        "fWeight":  1.0,
+        "aWeight":  1.0,
+        "eWeight":  10.0,
+        "edges":    true,
+        "wWeight":  20,
+        "colour":   "#ccc",
+        "N":        100
+      }
+
+      function setup(){
+        let slides = ["tWeight","aWeight","fWeight","cWeight"]
+        slides.map(id => {
+          let elem = document.getElementById(id)
+          elem.value = settings[id]*10
+          elem.onchange = function(){
+            settings[id] = elem.value/10
+          }
+        })
+
+        let switches = ["edges"]
+        switches.map(id => {
+          let elem = document.getElementById(id)
+          elem.checked = settings[id]
+          elem.onchange = function(){
+            settings[id] = elem.checked
+          }
+        })
+      }
+    </script>
     <script type="text/javascript" src="app.js" defer></script>
   </head>
-  <body onload="init()" style="margin: 0px">
+  <body onload="init(); setup()">
+    <input id='hidden' class='menu' type='checkbox'>
+    <label id='close'  class='menu tab' for='hidden'>
+      <div>></div>
+    </label>
+    <div id='open' class='menu tab'><</div>
+    <div id='controls' class='menu controls'>
+      <div id='title'>Controls</div>
+      <table id='info'><tr>
+          <td>Target</td>
+          <td id='tbl1'>
+            <input id="tWeight" type="range" max="100">
+          </td>
+        </tr><tr>
+          <td>Align</td>
+          <td id='tbl2'>
+            <input id="aWeight" type="range" max="100">
+          </td>
+        </tr><tr>
+          <td>Avoid</td>
+          <td id='tbl3'>
+            <input id="fWeight" type="range" max="100">
+          </td>
+        </tr><tr>
+          <td>Center</td>
+          <td id='tbl3'>
+            <input id="cWeight" type="range" max="100">
+          </td>
+        </tr><tr>
+          <td>Edges</td>
+          <td id='tbl3'>
+            <input id="edges" type="checkbox" max="100">
+          </td>
+        </tr>
+      </table>
+      <div id='actn1' class='button'>Action 1</div>
+      <div id='actn2' class='button'>Action 2</div>
+      <div id='actn3' class='button'>Action 3</div>
+    </div>
     <svg id="BoidGround" style="width:100vw; height:100vh"></svg>
   </body>
 </html>

@@ -2,8 +2,8 @@ function clamp(num, min, max){
   return Math.min(Math.max(num, min), max)
 }
 
-function rand(maxVal){
-  return Math.floor(Math.random()*maxVal)
+function rand(s, e){
+  return s + Math.random()*(e-s)
 }
 
 function selectSvg(sName){
@@ -34,29 +34,9 @@ function addLetterToWord(e){
 }
 
 let d = {}
-
-function declareVariables(){
-  d.settings = {"boids":{"minV":     30,
-                         "maxV":     100,
-                         "maxA":     50,
-                         "detectA":  0,
-                         "bDetectR": 50,
-                         "tDetectR": 50,
-                         "avoidR":   20,
-                         "tWeight":  1.0,
-                         "cWeight":  1.0,
-                         "fWeight":  1.0,
-                         "aWeight":  1.0,
-                         "wWeight":  20,
-                         "colour":   "#ccc",
-                         "N":        200}}
-
-  d.mousePos = null
-  d.letters = ""
-  d.wordPoints = []
-
-  return d.settings
-}
+d.mousePos = null
+d.letters = ""
+d.wordPoints = []
 
 function setupSvg(name){
   let svg = document.getElementById(name)
@@ -65,18 +45,30 @@ function setupSvg(name){
   return [svg, w, h]
 }
 
+function nBoid(svg, settings){
+  let w = settings.dims[0]
+  let h = settings.dims[1]
+  let s = settings.minV
+  let e = settings.maxV
+  return {
+    s: [rand(0, w), rand(0, h)],
+    v: [rand(s, e), rand(s, e)],
+    draw: newBoid(svg, settings.colour)
+  }
+}
+
+let Boids
 function init(){
   let [svg, w, h] = setupSvg("BoidGround")
 
-  let settings = declareVariables()
-  settings.boids.dims = [w, h]
+  settings.dims = [w, h]
 
   svg.onmousemove = updateMouseVals
   svg.onmouseout = unFocus
   document.onkeydown = addLetterToWord
 
-  let Boids = new Array(settings.boids.N).fill(0)
-  Boids = Boids.map(function(){return new Boid(settings.boids, newBoid(svg, settings.boids.colour))})
+  Boids = new Array(settings.N).fill(0)
+  Boids = Boids.map(function(){return nBoid(svg, settings)})
 
   animationLoop(Boids, settings)
 }

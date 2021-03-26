@@ -5,8 +5,8 @@
 (function(global){
   let id = 0
   function matrix(s, v){
-    v = mul(v, 1/mag(v))
-    return `matrix(${v[0]}, ${v[1]}, ${-v[1]}, ${v[0]}, ${s[0]}, ${s[1]})`
+    let nv = mul(v, 1/mag(v))
+    return `matrix(${nv[0]}, ${nv[1]}, ${-nv[1]}, ${nv[0]}, ${s[0]}, ${s[1]})`
   }
 
   global.newBoid = function(svg, c){
