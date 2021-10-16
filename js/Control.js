@@ -42,9 +42,9 @@ function update(boid, boids, t) {
   accels = [
     [near, avoid, settings.fWeight],
     [seen, align, settings.aWeight],
-    [seen, toMid, settings.cWeight],
-    [seen, toPos, settings.tWeight]
+    [seen, toMid, settings.cWeight]
   ]
+  if (settings.mouse) accels.push([seen, toPos, settings.mWeight])
   if (settings.edges) accels.push([near, edges, settings.eWeight])
 
   accels = accels.map(v => bAccel(...v))

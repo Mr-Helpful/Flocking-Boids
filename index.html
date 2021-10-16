@@ -18,21 +18,24 @@
       vRadius: 20,
       vAngle: -1,
       avoidR: 20,
-      tWeight: 0.3,
+      mWeight: 0.3, // mouse weight
       cWeight: 0.1, // centering weight
       fWeight: 1.0, // weight to avoid others
       aWeight: 1.0, // weight to align to others
-      eWeight: 10.0, // weight from edges of canvas
+      eWeight: 20.0, // weight from edges of canvas
       edges: true, // whether to enable edges on canvas
+      mouse: false, // whether the boids track the mouse
       wWeight: 20,
       colour: "#ccc",
       playing: true,
       N: 200
     }
 
+    let Boids = []
+
     function MenuSetup() {
       let elem
-      let slides = ["tWeight", "aWeight", "fWeight", "cWeight", "eWeight"]
+      let slides = ["mWeight", "aWeight", "fWeight", "cWeight", "eWeight"]
       slides.map(id => {
         elem = document.getElementById(id)
         elem.value = settings[id] * 10
@@ -41,7 +44,7 @@
         }
       })
 
-      let switches = ["edges"]
+      let switches = ["edges", "mouse"]
       switches.map(id => {
         elem = document.getElementById(id)
         elem.checked = settings[id]
@@ -50,19 +53,92 @@
         }
       })
 
-      document.getElementById("play").onclick = () => {
-        settings.playing = true
-        step(Boids)
+      let playElem = document.getElementById("play")
+      playElem.onclick = () => {
+        settings.playing = !settings.playing
+        if (settings.playing) {
+          step(Boids)
+          playElem.src = "icons/Pause.png"
+        } else {
+          playElem.src = "icons/Play.png"
+        }
       }
       document.getElementById("step").onclick = () => {
         step(Boids)
       }
-      document.getElementById("pause").onclick = () => {
-        settings.playing = false
+      document.getElementById("reload").onclick = () => {
+        init()
       }
     }
   </script>
-  <script type="text/javascript" src="app.js" defer></script>
+  <script type="text/javascript">
+    let d = {}
+    d.mousePos = null
+    d.letters = ""
+    d.wordPoints = []
+
+    function updateMouseVals(e) {
+      mouseX = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft)
+      mouseY = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop)
+      d.mousePos = [mouseX, mouseY]
+    }
+
+    function unFocus(e) {
+      d.mousePos = null
+    }
+
+    function addLetterToWord(e) {
+      if (e.keyCode === 13) {
+        drawWords(d.letters)
+        d.letters = ""
+      } else {
+        let inp = String.fromCharCode(e.keyCode)
+        if (/[a-zA-Z0-9-_ .]/.test(inp)) {
+          d.letters += inp
+        }
+      }
+    }
+
+    function nBoid(svg, settings) {
+      let w = settings.dims[0]
+      let h = settings.dims[1]
+      let s = settings.minV
+      let e = settings.maxV
+      return {
+        s: V.random([0, 0], settings.dims),
+        v: V.lim(V.random([-e, -e], [e, e]), s, e),
+        draw: newBoid(svg, settings.colour)
+      }
+    }
+
+    function init() {
+      let svg = document.getElementById("BoidGround")
+      settings.dims = [
+        document.body.clientWidth,
+        document.body.clientHeight,
+      ]
+
+      let vBox = [settings.vRadius, settings.vRadius]
+      vRect = [vBox, V.sub(settings.dims, vBox)]
+
+      svg.onmousemove = updateMouseVals
+      svg.onmouseout = unFocus
+      document.onkeydown = addLetterToWord
+
+      Boids.forEach(b => b.draw.remove())
+      Boids = new Array(settings.N).fill(0)
+      Boids = Boids.map(function() {
+        return nBoid(svg, settings)
+      })
+
+      step()
+    }
+
+    function step() {
+      updateBoids(Boids, 60)
+      if (settings.playing) window.requestAnimationFrame(step)
+    }
+  </script>
 </head>
 
 <body onload="init(); MenuSetup()">
@@ -75,12 +151,6 @@
       <div id='controls' class='menu controls'>
         <div id='title'>Controls</div>
         <table id='info'>
-          <tr>
-            <td>Target</td>
-            <td id='tbl1'>
-              <input id="tWeight" type="range" max="100">
-            </td>
-          </tr>
           <tr>
             <td>Align</td>
             <td id='tbl2'>
@@ -100,18 +170,33 @@
             </td>
           </tr>
           <tr>
+            <td>Mouse</td>
+            <td id='tbl1'>
+              <input id="mWeight" type="range" max="100">
+            </td>
+          </tr>
+          <tr>
             <td>Edges</td>
             <td id='tbl3'>
-              <input id="eWeight" type="range" max="100">
+              <input id="eWeight" type="range" max="200">
             </td>
           </tr>
         </table>
-        <input id="edges" class="switch" type="checkbox">
-        <label class="button" for="edges">Edges</label>
+
+        <div style="display: grid; padding: 0px">
+          <!--Needs to be wrapped in a div to achieve proper formatting-->
+          <input id="mouse" class="switch" type="checkbox">
+          <label class="button" for="mouse">Mouse</label></div>
+
+        <div style="display: grid; padding: 0px">
+          <!--Needs to be wrapped in a div to achieve proper formatting-->
+          <input id="edges" class="switch" type="checkbox">
+          <label class="button" for="edges">Edges</label></div>
+
         <div id="flow" style="display: grid; padding: 0px">
-          <img id="play" style="grid-column: 1/ span 1" class="media button" src="icons/Play.png"></img>
-          <img id="pause" style="grid-column: 2/ span 1" class="media button" src="icons/Pause.png"></img>
-          <img id="step" style="grid-column: 3/ span 1" class="media button" src="icons/Skip.png"></img>
+          <img id="play" style="grid-column: 1/ span 1" class="media button" src="icons/Pause.png"></img>
+          <img id="step" style="grid-column: 2/ span 1" class="media button" src="icons/Skip.png"></img>
+          <img id="reload" style="grid-column: 3/ span 1" class="media button" src="icons/Reload.png"></img>
           <!-- admittedly the setup for a image checkbox is probably overcomplicated -->
           <input id="timed" class="switch" type="checkbox">
           <label for="timed" class="media button" style="grid-column: 4/ span 1">

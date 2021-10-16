@@ -4,6 +4,7 @@
 
 (function(global) {
   let id = 0
+  let drawRadius = false
 
   function matrix(s, v) {
     let nv = V.one(v)
@@ -19,20 +20,32 @@
     boid.setAttribute("fill", "none")
     svg.appendChild(boid)
 
-    // let circ = document.createElementNS("http://www.w3.org/2000/svg", "circle")
-    // nId = (id++).toString()
-    // circ.setAttribute("id", nId)
-    // circ.setAttribute("cx", 0)
-    // circ.setAttribute("cy", 0)
-    // circ.setAttribute("r", settings.vRadius)
-    // circ.setAttribute("stroke", c)
-    // circ.setAttribute("fill", "none")
-    // svg.appendChild(circ)
+    let circ = {
+        remove() {}
+      } // set the scope out here, so it's accessible from the draw function
+    if (drawRadius) {
+      circ = document.createElementNS("http://www.w3.org/2000/svg", "circle")
+      nId = (id++).toString()
+      circ.setAttribute("id", nId)
+      circ.setAttribute("cx", 0)
+      circ.setAttribute("cy", 0)
+      circ.setAttribute("r", settings.vRadius)
+      circ.setAttribute("stroke", c)
+      circ.setAttribute("fill", "none")
+      svg.appendChild(circ)
+    }
 
-    return function(s, v) {
+    function draw(s, v) {
       let m = matrix(s, v)
-        // circ.setAttribute("transform", m)
+      if (drawRadius) circ.setAttribute("transform", m)
       boid.setAttribute("transform", m)
     }
+
+    draw.remove = function() {
+      boid.remove()
+      circ.remove()
+    }
+
+    return draw
   }
 })(this)
