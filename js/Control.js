@@ -1,164 +1,150 @@
-Vector = require("./Vector.js")
-drawWords = require("./Word.js")
-drawBoid = require("./Arrow.js")
+let mouseX = 0
+let mouseY = 0
 
-function clamp(num, min, max){
-  return Math.min(Math.max(num, min), max)
-}
+let letters = ''
 
-function rand(maxVal){
-  return Math.floor(Math.random()*maxVal)
-}
-
-class Boid{
-  s = null
-  v = null
-  a = null
-  constructor(settings){
-    this.S = settings
-
-    const m = this.S.dims[0], n = this.S.dims[1]
-    this.s = new Vector(rand(m), rand(n))
-
-    const vx = this.S.minV + rand(this.S.maxV - this.S.minV)
-    const vy = this.S.minV + rand(this.S.maxV - this.S.minV)
-    this.v = new Vector(vx, vy)
-
-    this.a = new Vector(0, 0)
-  }
-
-  selectBoids(Boids){
-    return Boids.filter(b => {
-      const o = b.s - this.s
-      const mV = this.v.length()
-      const mO = o.length()
-      const cosA = this.v.dot(o) / (mO * mV)
-      return (cosA > this.S.detectA && 0 < mO && mO < this.S.detectR)
-    })
-  }
-
-  update(Boids, t = null, w = null){
-    this.a = new Vector(0, 0)
-
-    if(t !== null){
-      var o = t.sub(this.s)
-      if(o.length() < this.S.detectR){
-        this.a = this.a.add(this.nudgeA(o).mul(this.S.tWeight))
-      }
-    }
-    if(w !== undefined){
-      var o = t.sub(this.s)
-      this.a = this.a.add(this.nudgeA(o).mul(this.S.wWeight))
-    }
-    if(Boids.length > 0){
-      this.a = this.a.add(this.toCenter(Boids))
-      this.a = this.a.add(this.fromOthers(Boids))
-      this.a = this.a.add(this.alignOthers(Boids))
-    }
-  }
-
-  move(T){
-    var temp = this.v
-    this.v = this.v.add(this.a.mul(T))
-    if(temp.mul(T) === this.v.mul(T)){
-      alert("not updated")
-    }
-    this.v = this.limitA(this.v, this.S.minV, this.S.maxV)
-    if(temp.mul(T) === this.v.mul(T)){
-      alert("not updated")
-    }
-    this.s = this.s.add(this.v.mul(T))
-
-    // stops the boids going off the sides of the screen
-    this.s.x = (this.s.x + this.S.dims[0]) % this.S.dims[0]
-    this.s.y = (this.s.y + this.S.dims[1]) % this.S.dims[1]
-  }
-
-  toCenter(Boids){
-    var vecs = Boids.map(val => val.s)
-    const o = this.avgVecs(vecs).sub(this.s)
-    return this.nudgeA(o).mul(this.S.cWeight)
-  }
-
-  fromOthers(Boids){
-    const tooClose = Boids.filter(b => {
-      const o = b.s.sub(this.s)
-      return (o.length() < this.S.avoidR)
-    })
-    const fVecs = tooClose.map(b => {
-      const o = b.s.sub(this.s).mul(-1)
-      return o.mul(1/(o.length() + 1) ** 2)
-    })
-    var o = this.avgVecs(fVecs)
-    o = this.nudgeA(o).mul(this.S.fWeight)
-    return o
-  }
-
-  alignOthers(Boids){
-    var vecs = Boids.map(val => val.v)
-    const o = this.avgVecs(vecs)
-    return o.mul(this.S.aWeight)
-  }
-
-  avgVecs(vecs){
-    const t = vecs.reduce((x, y) => x.add(y), new Vector(0,0))
-    return t.mul(1/vecs.length)
-  }
-
-  limitA(a, min, max){
-    const scale = clamp(a.length(), min, max)
-    return a.normalize().mul(scale)
-  }
-
-  nudgeA(v){
-    // finds an acceleration which will nudge the velocity towards the desired velocity v
-    var a = v.normalize().mul(this.S.maxV).sub(this.v)
-    return this.limitA(a, 0, this.S.maxA)
-  }
-}
-
-var mouseX = 0
-var mouseY = 0
-function updateMouseVals(e){
-  mouseX = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft)
-  mouseY = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop)
-}
-
-var letters = ""
-function addLetterToWord(e){
-  alert("function called")
-  if(e.keyCode === 13){
+function addLetterToWord(e) {
+  alert('function called')
+  if (e.keyCode === 13) {
     drawWords()
-  }
-  else{
-    var inp = String.fromCharCode(e.keyCode)
+  } else {
+    let inp = String.fromCharCode(e.keyCode)
     alert("adding letter '" + inp + "' to word '" + letters + "'.")
-    if (/[a-zA-Z0-9-_ ]/.test(inp)){
+    if (/[a-zA-Z0-9-_ ]/.test(inp)) {
       letters += inp
     }
   }
 }
 
-function updateBoids(Boids, T){
-  alert("Boids being updated")
-  var canvas = document.getElementById("BoidGround")
-  var ctx = canvas.getContext("2d")
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
+function updateBoids(Boids, f) {
+  tPos = [mouseX, mouseY]
 
-  tPos = new Vector(mouseX, mouseY)
-
-  for(var i in Boids){
-    Boids[i].update(Boids, tPos, wordPoints[i])
+  for (b of Boids) {
+    update(b, Boids, tPos)
   }
-  for(b of Boids){
-    b.move(T/1000)
-  }
-  for(b of Boids){
-    drawBoid(ctx, b.s, b.v)
+  for (b of Boids) {
+    move(b, 1 / f)
   }
 }
 
-module.exports = [Boid,
-                  updateMouseVals,
-                  addLetterToWord,
-                  updateBoids]
+let accels
+/** Updates the acceleration for a single boid
+ * @param {Object} boid - a single boid object
+ * @param {Array} boids - all other boids
+ * @param {Vector} t - a position to target
+ * @return {Object} - the boid with its acceleration updated
+ */
+function update(boid, boids, t) {
+  let [near, seen] = select(boid, boids)
+  // we bind all the common variables to be used in finding an acceleration
+  let bAccel = getAcc.bind(this, boid, t, settings.maxV)
+
+  accels = [
+    [near, avoid, settings.fWeight],
+    [seen, align, settings.aWeight],
+    [seen, toMid, settings.cWeight]
+  ]
+  if (settings.useMouse) accels.push([seen, toPos, settings.mWeight])
+  if (settings.useEdges) accels.push([near, edges, settings.eWeight])
+
+  accels = accels.map(v => bAccel(...v))
+
+  boid.a = V.set(V.avg(accels), settings.maxA)
+  return boid
+}
+
+/** Gets the acceleration of a single boid from its desired velocity
+ * @param {Object} boid - a single boid object
+ * @param {Array} boids - the other seen boids
+ * @param {Vector} t - a position to target
+ * @param {Number} maxV - the maximum velocity the boids can move at
+ * @param {Function} f - the function used to determine the boid's desired
+ * velocity
+ * @param {Number} weight - the weight to assign to the given acceleration
+ * @return {Vector} - the acceleration to use
+ */
+function getAcc(boid, t, maxV, boids, f, weight) {
+  let v0 = f(boid, boids, t)
+  let v1 = V.set(v0, maxV)
+  if (v1 == [0, 0]) return v1
+  return V.mul(V.sub(v1, boid.v), weight)
+}
+
+/** Selects all the boids that the current boid can "see"
+ * @param {Object} boid - a single boid object
+ * @param {Array} boids - all other boids
+ * @return {Array} - the boids that the current boid can "see"
+ */
+function select(boid, boids) {
+  let near = boids.filter(b => {
+    let d = V.mag(V.sub(b.s, boid.s))
+    return 0 < d && d <= settings.vRadius
+  })
+  let seen = near.filter(b => {
+    let o = V.sub(b.s, boid.s)
+    return V.dot(o, b.v) / (V.mag(o) * V.mag(b.v)) > settings.vAngle
+  })
+  return [near, seen]
+}
+
+/** Gets the nudge required to avoid all other seen boids
+ * @param {Object} boid - a single boid object
+ * @param {Array} boids - the other seen boids
+ * @return {Vector} - the velocity needed to avoid the other boids in one step
+ */
+function avoid(boid, boids) {
+  return V.avg(
+    boids.map(b => V.sub(b.s, boid.s)).map(o => V.set(o, -1 / V.mag(o)))
+  )
+}
+
+/** Gets the nudge required to align the boid with other seen boids
+ * @param {Object} boid - a single boid object, included to match the layout of
+ * other functions
+ * @param {Array} boids - the other seen boids
+ * @return {Vector} - the velocity needed to align
+ */
+function align(_, boids) {
+  return V.avg(boids.map(b => b.v))
+}
+
+/** Gets the nudge required to move the boid to the middle of the pack
+ * @param {Object} boid - a single boid object
+ * @param {Array} boids - the other seen boids
+ * @return {Vector} - the velocity needed to reach the middle in one step
+ */
+function toMid(boid, boids) {
+  return toPos(boid, boids, V.avg(boids.map(b => b.s)))
+}
+
+/** Gets the nudge required for the boid to reach a certain position.
+ * @param {Object} boid - a single boid object
+ * @param {Array} boids - the other seen boids, included to match the layout of
+ * other functions
+ * @param {Vector} t - the target position to reach
+ * @return {Vector} - the velocity needed to reach the position in one step
+ */
+function toPos(boid, _, t) {
+  return V.sub(t, boid.s)
+}
+
+function edges(boid) {
+  const vBox = [settings.vRadius, settings.vRadius]
+  const vRect = [vBox, V.sub(settings.dims, vBox)]
+  if (V.in(boid.s, ...vRect)) return [0, 0]
+  return toPos(
+    boid,
+    [],
+    settings.dims.map(v => Math.floor(v / 2))
+  )
+}
+
+function move(boid, T) {
+  boid.v = V.add(boid.v, V.mul(boid.a, T))
+  boid.s = V.add(boid.s, V.mul(boid.v, T))
+  if (settings.useEdges) {
+    boid.s = V.clamp(boid.s, [1, 1], V.sub(settings.dims, [1, 1]))
+  }
+  boid.s = V.mod(boid.s, settings.dims)
+  boid.draw(boid.s, boid.v)
+}

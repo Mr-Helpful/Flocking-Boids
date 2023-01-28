@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Alex Colby</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="css/controls.css">
+  <script src="js/Vector.js"></script>
+  <script src="modules/MaxHeap.js"></script>
+  <script src="js/Draw.js"></script>
+  <script src="js/Word.js"></script>
+  <script src="js/Control.js"></script>
+  <script type="text/javascript">
+    let settings = {}
+    settings = {
+      minV: 30,
+      maxV: 50,
+      maxA: 10,
+      vRadius: 20,
+      vAngle: -1,
+      avoidR: 20,
+      mWeight: 0.3, // mouse weight
+      cWeight: 0.1, // centering weight
+      fWeight: 1.0, // weight to avoid others
+      aWeight: 1.0, // weight to align to others
+      eWeight: 20.0, // weight from edges of canvas
+      useEdges: true, // whether to enable edges on canvas
+      useMouse: false, // whether the boids track the mouse
+      wWeight: 20,
+      colour: "#ccc",
+      playing: true,
+      N: 100
+    }
+
+    let Boids = []
+
+    function MenuSetup() {
+      let elem
+      let slides = ["mWeight", "aWeight", "fWeight", "cWeight", "eWeight"]
+      slides.map(id => {
+        elem = document.getElementById(id)
+        elem.value = settings[id] * 10
+        elem.onchange = function () {
+          settings[id] = elem.value / 10
+        }
+      })
+
+      let switches = ["useEdges", "useMouse"]
+      switches.map(id => {
+        elem = document.getElementById(id)
+        elem.checked = settings[id]
+        elem.onchange = function () {
+          settings[id] = elem.checked
+        }
+      })
+
+      let playElem = document.getElementById("play")
+      playElem.onclick = () => {
+        settings.playing = !settings.playing
+        if (settings.playing) {
+          step(Boids)
+          playElem.src = "icons/Pause.png"
+        } else {
+          playElem.src = "icons/Play.png"
+        }
+      }
+      document.getElementById("step").onclick = () => {
+        step(Boids)
+      }
+      document.getElementById("reload").onclick = () => {
+        init()
+      }
+    }
+  </script>
+  <script type="text/javascript">
+    let d = {}
+    d.mousePos = null
+    d.letters = ""
+    d.wordPoints = []
+
+    function updateMouseVals(e) {
+      mouseX = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft)
+      mouseY = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop)
+      d.mousePos = [mouseX, mouseY]
+    }
+
+    function unFocus(e) {
+      d.mousePos = null
+    }
+
+    function addLetterToWord(e) {
+      if (e.keyCode === 13) {
+        drawWords(d.letters)
+        d.letters = ""
+      } else {
+        let inp = String.fromCharCode(e.keyCode)
+        if (/[a-zA-Z0-9-_ .]/.test(inp)) {
+          d.letters += inp
+        }
+      }
+    }
+
+    function nBoid(svg, settings) {
+      let w = settings.dims[0]
+      let h = settings.dims[1]
+      let s = settings.minV
+      let e = settings.maxV
+      return {
+        s: V.random([0, 0], settings.dims),
+        v: V.lim(V.random([-e, -e], [e, e]), s, e),
+        draw: newBoid(svg, settings.colour)
+      }
+    }
+
+    let svg
+
+    function svgResize(svg) {
+      console.log(window.innerWidth, window.innerHeight);
+      [
+        svg.width,
+        svg.height
+      ] = settings.dims = [
+        window.innerWidth,
+        window.innerHeight
+      ]
+    }
+
+    function init() {
+      svg = document.getElementById("BoidGround")
+      window.onresize = svgResize.bind(this, svg)
+      svgResize(svg)
+
+      let vBox = [settings.vRadius, settings.vRadius]
+      vRect = [vBox, V.sub(settings.dims, vBox)]
+
+      svg.onmousemove = updateMouseVals
+      svg.onmouseout = unFocus
+      document.onkeydown = addLetterToWord
+      reset()
+    }
+
+    function reset() {
+      // as we're reseting, we remove all drawn boids from the svg
+      Boids.forEach(b => b.draw.remove())
+      Boids = new Array(settings.N).fill(0)
+      Boids = Boids.map(function () {
+        return nBoid(svg, settings)
+      })
+      step()
+    }
+
+    function step() {
+      updateBoids(Boids, 60)
+      if (settings.playing) window.requestAnimationFrame(step)
+    }
+  </script>
+</head>
+
+<body onload="init(); MenuSetup()">
+  <input id='hidden' class='menu' type='checkbox'>
+  <label id='close' class='menu tab' for='hidden'>
+    <div>&gt</div>
+  </label>
+  <div id='open' class='menu tab'>
+    <div>&lt</div>
+  </div>
+  <div id='controls' class='menu controls'>
+    <div id='title'>Controls</div>
+    <table id='info'>
+      <tr>
+        <td>Align</td>
+        <td id='tbl2'>
+          <input id="aWeight" type="range" max="100">
+        </td>
+      </tr>
+      <tr>
+        <td>Avoid</td>
+        <td id='tbl3'>
+          <input id="fWeight" type="range" max="100">
+        </td>
+      </tr>
+      <tr>
+        <td>Center</td>
+        <td id='tbl3'>
+          <input id="cWeight" type="range" max="100">
+        </td>
+      </tr>
+      <tr>
+        <td>Mouse</td>
+        <td id='tbl1'>
+          <input id="mWeight" type="range" max="100">
+        </td>
+      </tr>
+      <tr>
+        <td>Edges</td>
+        <td id='tbl3'>
+          <input id="eWeight" type="range" max="200">
+        </td>
+      </tr>
+    </table>
+
+    <div style="display: grid; padding: 0px">
+      <!--Needs to be wrapped in a div to achieve proper formatting-->
+      <input id="useMouse" class="switch" type="checkbox">
+      <label class="button" for="useMouse">Mouse</label>
+    </div>
+
+    <div style="display: grid; padding: 0px">
+      <!--Needs to be wrapped in a div to achieve proper formatting-->
+      <input id="useEdges" class="switch" type="checkbox">
+      <label class="button" for="useEdges">Edges</label>
+    </div>
+
+    <div id="flow" style="display: grid; padding: 0px">
+      <img id="play" style="grid-column: 1/ span 1" class="media button" src="icons/Pause.png"></img>
+      <img id="step" style="grid-column: 2/ span 1" class="media button" src="icons/Skip.png"></img>
+      <img id="reload" style="grid-column: 3/ span 1" class="media button" src="icons/Reload.png"></img>
+      <!-- admittedly the setup for a image checkbox is probably overcomplicated -->
+      <input id="timed" class="switch" type="checkbox">
+      <label for="timed" class="media button" style="grid-column: 4/ span 1">
+        <img class="media" src="icons/Time.png"></img>
+      </label>
+    </div>
+  </div>
+  <canvas id="Words" width=500px height=100px style="position:fixed">Canvas not supported!</canvas>
+  <svg id="BoidGround" style="height: 100vh; width: 100vw;">SVG not supported!</svg>
+</body>
+
+</html>
