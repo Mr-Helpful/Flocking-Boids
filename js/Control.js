@@ -1,10 +1,10 @@
 let mouseX = 0
 let mouseY = 0
 
-let letters = ""
+let letters = ''
 
 function addLetterToWord(e) {
-  alert("function called")
+  alert('function called')
   if (e.keyCode === 13) {
     drawWords()
   } else {
@@ -28,15 +28,15 @@ function updateBoids(Boids, f) {
 }
 
 let accels
-  /** Updates the acceleration for a single boid
-   * @param {Object} boid - a single boid object
-   * @param {Array} boids - all other boids
-   * @param {Vector} t - a position to target
-   * @return {Object} - the boid with its acceleration updated
-   */
+/** Updates the acceleration for a single boid
+ * @param {Object} boid - a single boid object
+ * @param {Array} boids - all other boids
+ * @param {Vector} t - a position to target
+ * @return {Object} - the boid with its acceleration updated
+ */
 function update(boid, boids, t) {
   let [near, seen] = select(boid, boids)
-    // we bind all the common variables to be used in finding an acceleration
+  // we bind all the common variables to be used in finding an acceleration
   let bAccel = getAcc.bind(this, boid, t, settings.maxV)
 
   accels = [
@@ -44,8 +44,8 @@ function update(boid, boids, t) {
     [seen, align, settings.aWeight],
     [seen, toMid, settings.cWeight]
   ]
-  if (settings.mouse) accels.push([seen, toPos, settings.mWeight])
-  if (settings.edges) accels.push([near, edges, settings.eWeight])
+  if (settings.useMouse) accels.push([seen, toPos, settings.mWeight])
+  if (settings.useEdges) accels.push([near, edges, settings.eWeight])
 
   accels = accels.map(v => bAccel(...v))
 
@@ -93,9 +93,8 @@ function select(boid, boids) {
  * @return {Vector} - the velocity needed to avoid the other boids in one step
  */
 function avoid(boid, boids) {
-  return V.avg(boids
-    .map(b => V.sub(b.s, boid.s))
-    .map(o => V.set(o, -1 / V.mag(o)))
+  return V.avg(
+    boids.map(b => V.sub(b.s, boid.s)).map(o => V.set(o, -1 / V.mag(o)))
   )
 }
 
@@ -105,10 +104,8 @@ function avoid(boid, boids) {
  * @param {Array} boids - the other seen boids
  * @return {Vector} - the velocity needed to align
  */
-function align(boid, boids) {
-  return V.avg(boids
-    .map(b => b.v)
-  )
+function align(_, boids) {
+  return V.avg(boids.map(b => b.v))
 }
 
 /** Gets the nudge required to move the boid to the middle of the pack
@@ -117,9 +114,7 @@ function align(boid, boids) {
  * @return {Vector} - the velocity needed to reach the middle in one step
  */
 function toMid(boid, boids) {
-  return toPos(boid, boids, V.avg(boids
-    .map(b => b.s)
-  ))
+  return toPos(boid, boids, V.avg(boids.map(b => b.s)))
 }
 
 /** Gets the nudge required for the boid to reach a certain position.
@@ -129,7 +124,7 @@ function toMid(boid, boids) {
  * @param {Vector} t - the target position to reach
  * @return {Vector} - the velocity needed to reach the position in one step
  */
-function toPos(boid, boids, t) {
+function toPos(boid, _, t) {
   return V.sub(t, boid.s)
 }
 
@@ -137,13 +132,17 @@ function edges(boid) {
   const vBox = [settings.vRadius, settings.vRadius]
   const vRect = [vBox, V.sub(settings.dims, vBox)]
   if (V.in(boid.s, ...vRect)) return [0, 0]
-  return toPos(boid, [], settings.dims.map(v => Math.floor(v / 2)))
+  return toPos(
+    boid,
+    [],
+    settings.dims.map(v => Math.floor(v / 2))
+  )
 }
 
 function move(boid, T) {
   boid.v = V.add(boid.v, V.mul(boid.a, T))
   boid.s = V.add(boid.s, V.mul(boid.v, T))
-  if (settings.edges) {
+  if (settings.useEdges) {
     boid.s = V.clamp(boid.s, [1, 1], V.sub(settings.dims, [1, 1]))
   }
   boid.s = V.mod(boid.s, settings.dims)
