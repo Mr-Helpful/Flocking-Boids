@@ -140,7 +140,7 @@ function edges(boid) {
 }
 
 function move(boid, T) {
-  boid.v = V.add(boid.v, V.mul(boid.a, T))
+  boid.v = V.lim(V.add(boid.v, V.mul(boid.a, T)), settings.minV, settings.maxV)
   boid.s = V.add(boid.s, V.mul(boid.v, T))
   if (settings.useEdges) {
     boid.s = V.clamp(boid.s, [1, 1], V.sub(settings.dims, [1, 1]))
